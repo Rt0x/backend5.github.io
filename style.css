@@ -1,0 +1,27 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body{
+    background:linear-gradient(rgb())
+}
+.head{
+    background-image: url(https://4kwallpapers.com/images/wallpapers/dark-background-abstract-background-network-3d-background-2560x1080-8324.png);
+    height: 200px
+}
+.logo{
+    display: flex;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 100px;
+    color: aliceblue;
+}
+nav h1{
+    font-weight: bold;
+    font-size: 40px;
+}
+.var{
+    display: flex;
+    justify-content: end;
+}
