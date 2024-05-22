@@ -78,12 +78,12 @@ function setVal($enName, $param){
 
   if ($error && !empty($_SESSION['login'])) {
     try {
-      $dbFD = $db->prepare("SELECT * FROM osnova WHERE user_id = ?");
+      $dbFD = $db->prepare("SELECT * FROM form_data WHERE user_id = ?");
       $dbFD->execute([$_SESSION['user_id']]);
       $fet = $dbFD->fetchAll(PDO::FETCH_ASSOC)[0];
       $form_id = $fet['id'];
       $_SESSION['form_id'] = $form_id;
-      $dbL = $db->prepare("SELECT l.name FROM osnova_languages f
+      $dbL = $db->prepare("SELECT l.name FROM form_data_lang f
                             LEFT JOIN languages l ON l.id = f.id_lang
                             WHERE f.id_form = ?");
       $dbL->execute([$form_id]);
@@ -216,15 +216,15 @@ else{
    // Проверяем меняются ли ранее сохраненные данные или отправляются новые.
    if ($log) { 
       
-    $stmt = $db->prepare("UPDATE osnova SET name = ?, number = ?, email = ?, data = ?, radio = ?, biography = ? WHERE user_id = ?");
+    $stmt = $db->prepare("UPDATE form_data SET name = ?, number = ?, email = ?, data = ?, radio = ?, biography = ? WHERE user_id = ?");
     $stmt->execute([$name, $number, $email, strtotime($data), $radio, $biography, $_SESSION['user_id']]);
     var_dump ($data);
     print_r($db->errorInfo());
 
-    $stmt = $db->prepare("DELETE FROM languages WHERE id_form = ?");
+    $stmt = $db->prepare("DELETE FROM form_data_lang WHERE id_form = ?");
     $stmt->execute([$_SESSION['form_id']]);
 
-    $stmt1 = $db->prepare("INSERT INTO languages (id_form, id_lang) VALUES (?, ?)");
+    $stmt1 = $db->prepare("INSERT INTO form_data_lang (id_form, id_lang) VALUES (?, ?)");
     foreach($languages as $row){
         $stmt1->execute([$_SESSION['form_id'], $row['id']]);
     }
@@ -251,9 +251,9 @@ else{
 
 
     $fid = $db->lastInsertId();
-    $stmt = $db->prepare("INSERT INTO osnova (user_id, name, number, email, data, radio, biography) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $db->prepare("INSERT INTO form_data (user_id, name, number, email, data, radio, biography) VALUES (?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([$fid, $name, $number, $email, strtotime($data), $radio, $biography]);
-    $stmt1 = $db->prepare("INSERT INTO languages (id_form, id_lang) VALUES (?, ?)");
+    $stmt1 = $db->prepare("INSERT INTO form_data_lang (id_form, id_lang) VALUES (?, ?)");
     foreach($languages as $row){
         $stmt1->execute([$fid, $row['id']]);
     }
