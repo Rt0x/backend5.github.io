@@ -54,19 +54,19 @@ try {
         if (empty($errors)) {
             $conn->beginTransaction();
             try {
-                $stmt = $conn->prepare("INSERT INTO osnova (fio, phone, email, dob, gender, bio, agreement) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt = $conn->prepare("INSERT INTO users (fio, phone, email, dob, gender, bio, agreement) VALUES (?, ?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$fio, $phone, $email, $dob, $gender, $bio, $agreement]);
                 $userId = $conn->lastInsertId();
 
                 foreach ($languages as $language) {
-                    $stmt = $conn->prepare("INSERT INTO osnova_languages (user_id, language_id) VALUES (?, (SELECT id FROM languages WHERE name = ?))");
+                    $stmt = $conn->prepare("INSERT INTO user_languages (user_id, language_id) VALUES (?, (SELECT id FROM programming_languages WHERE name = ?))");
                     $stmt->execute([$userId, $language]);
                 }
 
                 // Generating login credentials
                 $password = bin2hex(random_bytes(8));
                 $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $conn->prepare("INSERT INTO users (user_id, password_hash) VALUES (?, ?)");
+                $stmt = $conn->prepare("INSERT INTO user_credentials (user_id, password_hash) VALUES (?, ?)");
                 $stmt->execute([$userId, $hashedPassword]);
 
                 $loginData = [
@@ -143,7 +143,7 @@ $conn = null;
         <label for="language">Любимый язык программирования:</label>
         <select id="language" name="language[]" multiple required>
             <?php
-            $stmt = $conn->query("SELECT name FROM languages");
+            $stmt = $conn->query("SELECT name FROM programming_languages");
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 echo '<option value="'.$row['name'].'"'.(in_array($row['name'], getCookieValue('languages') ? explode(',', getCookieValue('languages')) : []) ? ' selected' : '').'>'.$row['name'].'</option>';
             }
