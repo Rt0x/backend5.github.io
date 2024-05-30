@@ -3,7 +3,7 @@ session_start();
 
 $servername = "localhost";
 $username = "u67296";
-$password = "5247723";
+$password = "5237724";
 $dbname = "u67296";
 
 function setCookieValue($name, $value) {
