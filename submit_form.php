@@ -20,12 +20,17 @@ function getCookieValue($name) {
 try {
     $conn = new PDO("mysql:host=$servername;dbname=$dbname", $username, $password);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    echo "Ошибка подключения к базе данных: " . $e->getMessage();
+    die();
+}
 
-    $errors = [];
-    $formData = [];
-    $loginData = [];
+$errors = [];
+$formData = [];
+$loginData = [];
 
-    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    try {
         $fio = filter_var($_POST['fio'], FILTER_SANITIZE_STRING);
         $phone = filter_var($_POST['phone'], FILTER_SANITIZE_STRING);
         $email = filter_var($_POST['email'], FILTER_VALIDATE_EMAIL);
@@ -57,20 +62,30 @@ try {
         if (empty($errors)) {
             $conn->beginTransaction();
             try {
+                // Insert user data
                 $stmt = $conn->prepare("INSERT INTO osnova (fio, phone, email, dob, gender, bio, agreement) VALUES (?, ?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$fio, $phone, $email, $dob, $gender, $bio, $agreement]);
                 $userId = $conn->lastInsertId();
 
+                // Insert user languages
                 foreach ($languages as $language) {
-                    $stmt = $conn->prepare("INSERT INTO osnova_languages (user_id, language_id) VALUES (?, (SELECT id FROM languages WHERE name = ?))");
-                    $stmt->execute([$userId, $language]);
+                    try {
+                        $stmt = $conn->prepare("INSERT INTO osnova_languages (user_id, language_id) VALUES (?, (SELECT id FROM languages WHERE name = ?))");
+                        $stmt->execute([$userId, $language]);
+                    } catch (PDOException $e) {
+                        throw new Exception("Ошибка добавления языка программирования: " . $e->getMessage());
+                    }
                 }
 
-                // Generating login credentials
-                $password = bin2hex(random_bytes(8));
-                $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $conn->prepare("INSERT INTO users (user_id, password_hash) VALUES (?, ?)");
-                $stmt->execute([$userId, $hashedPassword]);
+                // Generate login credentials
+                try {
+                    $password = bin2hex(random_bytes(8));
+                    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+                    $stmt = $conn->prepare("INSERT INTO users (user_id, password_hash) VALUES (?, ?)");
+                    $stmt->execute([$userId, $hashedPassword]);
+                } catch (Exception $e) {
+                    throw new Exception("Ошибка создания учетных данных пользователя: " . $e->getMessage());
+                }
 
                 $loginData = [
                     'userId' => $userId,
@@ -89,7 +104,7 @@ try {
                 exit;
             } catch (Exception $e) {
                 $conn->rollBack();
-                throw $e;
+                $errors['db'] = $e->getMessage();
             }
         } else {
             $_SESSION['errors'] = $errors;
@@ -97,22 +112,20 @@ try {
             header("Location: " . $_SERVER['PHP_SELF']);
             exit;
         }
-    } else {
-        $formData = $_SESSION['formData'] ?? [];
-        $errors = $_SESSION['errors'] ?? [];
-        $loginData = $_SESSION['loginData'] ?? [];
-
-        foreach ($formData as $key => $value) {
-            setCookieValue($key, $value);
-        }
-
-        unset($_SESSION['errors'], $_SESSION['formData'], $_SESSION['loginData']);
+    } catch (Exception $e) {
+        $errors['general'] = $e->getMessage();
     }
-} catch (PDOException $e) {
-    echo "Ошибка: " . $e->getMessage();
-}
+} else {
+    $formData = $_SESSION['formData'] ?? [];
+    $errors = $_SESSION['errors'] ?? [];
+    $loginData = $_SESSION['loginData'] ?? [];
 
-$conn = null;
+    foreach ($formData as $key => $value) {
+        setCookieValue($key, $value);
+    }
+
+    unset($_SESSION['errors'], $_SESSION['formData'], $_SESSION['loginData']);
+}
 ?>
 
 <!DOCTYPE html>
@@ -146,9 +159,13 @@ $conn = null;
         <label for="language">Любимый язык программирования:</label>
         <select id="language" name="language[]" multiple required>
             <?php
-            $stmt = $conn->query("SELECT name FROM programming_languages");
-            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                echo '<option value="'.$row['name'].'"'.(in_array($row['name'], getCookieValue('languages') ? explode(',', getCookieValue('languages')) : []) ? ' selected' : '').'>'.$row['name'].'</option>';
+            try {
+                $stmt = $conn->query("SELECT name FROM languages");
+                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    echo '<option value="'.$row['name'].'"'.(in_array($row['name'], explode(',', getCookieValue('languages'))) ? ' selected' : '').'>'.$row['name'].'</option>';
+                }
+            } catch (PDOException $e) {
+                echo "Ошибка загрузки языков программирования: " . $e->getMessage();
             }
             ?>
         </select><br>
@@ -156,16 +173,16 @@ $conn = null;
         <label for="bio">Биография:</label>
         <textarea id="bio" name="bio" required><?php echo getCookieValue('bio'); ?></textarea><br>
 
-        <label for="agreement">С контрактом ознакомлен (а):</label>
-        <input type="checkbox" id="agreement" name="agreement" <?php echo getCookieValue('agreement') ? 'checked' : ''; ?> required><br>
+        <label for="agreement">С контрактом ознакомлен:</label>
+        <input type="checkbox" id="agreement" name="agreement" <?php echo getCookieValue('agreement') ? 'checked' : ''; ?>><br>
 
-        <button type="submit">Сохранить</button>
+        <input type="submit" value="Сохранить">
     </form>
+
     <?php if (!empty($loginData)): ?>
-        <div class="login-data">
-            <p>Ваши учетные данные:</p>
-            <p>Логин: <?php echo $loginData['userId']; ?></p>
-            <p>Пароль: <?php echo $loginData['password']; ?></p>
+        <div class="login-info">
+            <p>Ваш логин: <?php echo $loginData['userId']; ?></p>
+            <p>Ваш пароль: <?php echo $loginData['password']; ?></p>
         </div>
     <?php endif; ?>
 </body>
