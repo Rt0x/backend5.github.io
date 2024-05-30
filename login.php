@@ -3,7 +3,7 @@ session_start();
 
 $servername = "localhost";
 $username = "u67296";
-$password = "5247723";
+$password = "5237724";
 $dbname = "u67296";
 
 try {
@@ -26,11 +26,43 @@ if (isset($_SESSION['user_id'])) {
     // Пользователь вошел, можно изменять данные
     // Реализация изменения данных
 } else {
-    // Проверяем, была ли отправлена форма входа
-    if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['login']) && isset($_POST['password'])) {
-        // Попытка входа с использованием логина и пароля
+    // Проверяем, была ли отправлена форма генерации логина и пароля
+    if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
+        // Генерируем логин и пароль
 
-        // Получаем введенные логин и пароль
+        // Случайный логин и пароль
+        $login = 'user_' . uniqid();
+        $password = bin2hex(random_bytes(8));
+
+        // Хешируем пароль
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+
+        // Сохраняем логин и хешированный пароль в базе данных
+        $stmt = $conn->prepare("INSERT INTO users (login, password_hash) VALUES (?, ?)");
+        $stmt->execute([$login, $passwordHash]);
+
+        // Выводим логин и пароль пользователю
+        echo "Ваш логин: $login<br>";
+        echo "Ваш пароль: $password<br>";
+        ?>
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Login</title>
+        </head>
+        <body>
+            <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post">
+                <input type="hidden" name="login" value="<?php echo $login; ?>">
+                <input type="hidden" name="password" value="<?php echo $password; ?>">
+                <input type="submit" name="login_with_generated" value="Войти">
+            </form>
+        </body>
+        </html>
+        <?php
+    } elseif ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['login_with_generated'])) {
+        // Пользователь входит с использованием сгенерированного логина и пароля
         $login = $_POST['login'];
         $password = $_POST['password'];
 
@@ -43,14 +75,14 @@ if (isset($_SESSION['user_id'])) {
             // Пароль верный, устанавливаем сессию для пользователя
             $_SESSION['user_id'] = $user['id'];
 
-            // Пользователь вошел, можно изменять данные
-            // Реализация изменения данных
+            // Выводим сообщение о успешном входе
+            echo "Успешный вход! Вы вошли как: $login";
         } else {
             // Неправильный логин или пароль, отобразить сообщение об ошибке
             echo "Неправильный логин или пароль.";
         }
     } else {
-        // Форма входа
+        // Форма генерации логина и пароля
         ?>
         <!DOCTYPE html>
         <html lang="en">
@@ -61,11 +93,7 @@ if (isset($_SESSION['user_id'])) {
         </head>
         <body>
             <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post">
-                <label for="login">Логин:</label>
-                <input type="text" id="login" name="login" required><br>
-                <label for="password">Пароль:</label>
-                <input type="password" id="password" name="password" required><br>
-                <input type="submit" value="Войти">
+                <input type="submit" name="generate" value="Сгенерировать логин и пароль">
             </form>
         </body>
         </html>
