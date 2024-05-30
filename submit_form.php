@@ -7,7 +7,7 @@ $password = "5237724";
 $dbname = "u67296";
 
 function setCookieValue($name, $value) {
-    setcookie($name, $value, time() + (86400 * 365), "/"); // 1 year
+    setcookie($name, (string)$value, time() + (86400 * 365), "/"); // 1 year
 }
 
 function getCookieValue($name) {
